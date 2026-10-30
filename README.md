@@ -2,7 +2,7 @@
 
 Local studio for Ollama. One Python file, standard library only, styled with `~/Applications/themes/wiz-theme.css` (theme and accent picker in the header).
 
-**Tools:** OCR · Translate · Prompt Generator · Roleplay · Rewrite · Chat · Caption · Extract
+**Tools:** OCR · Translate · Prompt Generator · Roleplay · Rewrite · Chat · Caption · Extract · T2VA · Ref2VA · Soundscape · Center Orbit · Character
 
 ## Start / stop
 ```
@@ -23,12 +23,17 @@ Every tool has a live model list, temperature, a hide-`<think>` toggle, an edita
 | Translate | Tone, glossary (`source = target`), keep line breaks, one image |
 | Prompt | Photoreal, Krea 2 (LoRA-aware), LoRA dataset shot with a trigger line, Qwen edit instruction, cinematic video, MiniMax H3 draft. Frame and variation count |
 | Roleplay | Character browser with tags, eight diverse female starters, collapsible card editor, Enter-to-send, Continue, delete/edit/swipe replies, italic `*actions*`, attach image, import/export JSON (including SillyTavern) |
-| Rewrite | Screenplay, dialogue, and subtext presets, plus a change view |
+| Rewrite | The same 18 modes and Light / Medium / Heavy strength as [wiz-text-rewriter](https://perchance.org/wiz-text-rewriter), a custom instruction that overrides the mode, plus studio extras (Screenplay, Tighten dialogue, Subtext, German learner) and a change view |
 | Chat | Plain threads, separate from roleplay, with an optional image |
 | Caption | Batch images into LoRA captions. Download a zip of sidecar `.txt` files |
 | Extract | Read one image. Presets for camera and character position, outfit, jewellery, makeup, hair, pose, light, set, a prose description, an image-to-prompt paragraph, an H3 framing line, a Qwen edit inventory, or a full breakdown. LoRA-safe leaves face, hair, skin and body type out |
+| T2VA | [wiz-t2va](https://perchance.org/wiz-t2va): MiniMax-H3 text-to-video clips as a reel. 20 movie types or auto, 6/8/10/15 s, direction, locked characters with Lock from scene, a location builder (category, place, side, era, time, weather, mood, style; AI generate, random, enhance, or instant without AI), Next scene / From input / Reset reel, and a no-AI fill-in if the model fails |
+| Ref2VA | [wiz-ref2va](https://perchance.org/wiz-ref2va): reference-to-video prompt with subject definitions. People, places and voice references (9 images, 3 voices), interaction, duration, 13 dialogue languages |
+| Soundscape | [wiz-soundscape](https://perchance.org/wiz-soundscape): overall_soundscape and non_diegetic_music fields. Music, genre, tempo, era, vocal, lyrics language, soundscape preset, 5–600 s clip |
+| Center Orbit | [wiz-center-orbit](https://perchance.org/wiz-center-orbit): 360 room sweep from walls, corners and the middle. Sweep and six angles are built locally; AI can fill the form from a description or a room photo (vision model) |
+| Character | [wiz-character](https://perchance.org/wiz-character): name, role, 17 genres, seed idea, 13 detail fields. Develop fills only empty fields, Deepen, per-field Regenerate, Build outputs (visual lock line, Krea2 / Qwen turnaround sheet, voice), Lock in T2VA |
 
-Shortcuts: `Ctrl+Enter` runs the open tool, `Esc` stops, `Alt+1`–`Alt+8` switches tools, `Ctrl+K` opens the library, `Ctrl+/` shows the list.
+Shortcuts: `Ctrl+Enter` runs the open tool, `Esc` stops, `Alt+1`–`Alt+0` switches tools (1–9, then 0 for the 10th), `Ctrl+K` opens the library, `Ctrl+/` shows the list.
 
 The H3 draft is a starting point. Production clips still go through H3 Prompter.
 
@@ -37,9 +42,9 @@ The H3 draft is a starting point. Production clips still go through H3 Prompter.
 |---|---|
 | OCR | unlimited-ocr-3B-Q8 |
 | Translate | translategemma-4B-Q4KM |
-| Prompt, Caption, Extract | qwen-3-vl-8B-Q8 |
+| Prompt, Caption, Extract, Center Orbit | qwen-3-vl-8B-Q8 |
 | Roleplay | mag-mel-R1-12B-Q8 |
-| Rewrite, Chat | gemma-4-7.5B-Q8 (the German learner preset switches to sauerkraut-8B-Q8) |
+| Rewrite, Chat, T2VA, Ref2VA, Soundscape, Character | gemma-4-7.5B-Q8 (the German learner preset switches to sauerkraut-8B-Q8) |
 
 An older prompt preset named `Photoreal image` opens as `Photoreal still`. `MiniMax H3 structured` opens as `MiniMax H3 draft`.
 
