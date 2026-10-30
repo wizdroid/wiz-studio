@@ -82,3 +82,13 @@ small local models follow more reliably than JSON. Prompt design draws on:
 - Suno style prompts: https://paddystudio.com/blog/suno-prompting-guide/
 - Character turnaround sheets: https://arcloop.ai/handbook/en-US/character-turnaround-sheet-guide ,
   https://www.elser.ai/blog/ai-character-turnaround-prompts-front-side-back-views
+
+## Target model
+
+Prompt, T2VA, Ref2VA, Orbit, Character and Rewrite (Image / Video prompt modes) have a **🎯 Target model**
+picker under the model bar, remembered per tab. The chosen profile from `MODEL_PROFILES` (next to
+`ASSIST_PROMPTS`) is added to the tab's generation prompt and to Enhance / Generate: tag style with `(word:1.2)`
+weights and a 75-token budget for SD 1.5, prose and positive phrasing for Flux / Z-Image Turbo / Krea 2,
+edit instructions for Qwen-Image Edit, one camera move and motion language for Wan / LTX / MiniMax H3.
+It also shows recommended sizes and, for models that support one, an editable negative prompt with Copy.
+Each profile lists its sources in `src`. Sound is skipped (it targets audio, not image/video models).

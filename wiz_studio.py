@@ -238,6 +238,169 @@ ASSIST_PROMPTS = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Target-model profiles. The "Target model" picker on prompt-producing tabs injects the
+# chosen profile into Enhance / Generate and into the tab's main generation prompt.
+#   kind: image | edit | video    style: how prompts must be written
+#   max: length budget            negative: True if the model honours a negative prompt
+#   neg: default negative prompt  sizes: recommended resolutions    src: guidance used
+# ---------------------------------------------------------------------------
+WAN_NEG = ("色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，"
+           "丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，"
+           "静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走")
+MODEL_PROFILES = {
+    "generic": {
+        "label": "Generic", "kind": "any", "negative": False, "neg": "", "max": "",
+        "sizes": "", "style": "", "src": [],
+    },
+    "sd15": {
+        "label": "SD 1.5", "kind": "image", "negative": True, "max": "75 CLIP tokens (about 40-60 words); later tokens are weak or cut",
+        "neg": "worst quality, low quality, lowres, blurry, jpeg artifacts, bad anatomy, bad hands, extra fingers, missing fingers, deformed, watermark, text, signature",
+        "sizes": "512x512, 512x768, 768x512 (stay near 512 px; upscale after)",
+        "style": "Comma-separated tags and short phrases, most important first: subject, key features, outfit, action, setting, "
+                 "lighting, camera/shot, medium, style. Quality tags help this model (masterpiece, best quality, highly detailed). "
+                 "Weighting syntax works: (word:1.2) to boost, (word:0.8) to soften; use at most 3 weights, between 0.8 and 1.4. "
+                 "No full sentences.",
+        "src": ["https://huggingface.co/docs/diffusers/main/en/using-diffusers/weighted_prompts",
+                "https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Features#attentionemphasis"],
+    },
+    "sdxl": {
+        "label": "SDXL", "kind": "image", "negative": True, "max": "75-150 CLIP tokens (about 40-90 words)",
+        "neg": "lowres, blurry, worst quality, low quality, bad anatomy, bad hands, extra fingers, deformed, disfigured, watermark, text, logo, oversaturated",
+        "sizes": "1024x1024, 896x1152, 832x1216, 1152x896, 1216x832, 1344x768 (about 1 megapixel)",
+        "style": "Short descriptive phrases or a compact sentence plus comma tags: subject first, then action, setting, lighting, "
+                 "camera, medium and style. (word:1.2) weighting works; use at most 3 weights. Fewer quality tags than SD 1.5.",
+        "src": ["https://huggingface.co/docs/diffusers/main/en/using-diffusers/sdxl",
+                "https://stable-diffusion-art.com/sdxl-model/"],
+    },
+    "sd3": {
+        "label": "SD 3 / 3.5", "kind": "image", "negative": True, "max": "up to about 256 T5 tokens (about 150 words); first 77 also go to CLIP",
+        "neg": "blurry, low quality, deformed, bad anatomy, watermark",
+        "sizes": "1024x1024, 1152x896, 896x1152, 1344x768, 768x1344 (about 1 megapixel, multiples of 64)",
+        "style": "Natural-language sentences: subject and action first, then setting, composition, lighting, style and medium. "
+                 "Put exact on-image text in double quotes. Avoid (word:1.2) weights and long tag piles; negatives are weak, keep them short.",
+        "src": ["https://stability.ai/learning-hub/stable-diffusion-3-5-prompt-guide",
+                "https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/stable_diffusion_3"],
+    },
+    "flux1dev": {
+        "label": "Flux.1 [dev]", "kind": "image", "negative": False, "max": "up to 512 T5 tokens; 40-120 words works best",
+        "neg": "", "sizes": "1024x1024, 1344x768, 768x1344, 1216x832, 832x1216 (0.5-2 MP, multiples of 16); guidance ~3.5",
+        "style": "Natural-language prose, subject first, then action, setting layered foreground/background, light source and "
+                 "direction, camera and lens, materials, style. No weighting syntax, no quality tags. No negative prompt: "
+                 "write exclusions positively (\"sharp focus\" not \"no blur\", \"empty street\" not \"no people\").",
+        "src": ["https://docs.bfl.ai/guides/prompting_summary",
+                "https://huggingface.co/black-forest-labs/FLUX.1-dev"],
+    },
+    "flux2klein": {
+        "label": "Flux 2 Klein", "kind": "image", "negative": False, "max": "40-120 words",
+        "neg": "", "sizes": "1024x1024, 1360x768, 768x1360, 1248x832 (multiples of 16); 4 steps, no CFG",
+        "style": "Narrative prose like a novelist, no keyword lists; Klein has no prompt upsampling, so write every detail "
+                 "yourself. Order: main subject, key action, style, context, secondary details (word order = priority). "
+                 "Describe light like a photographer (source, quality, direction, color temperature) and name materials. "
+                 "Hex colors must be tied to an object. No negative prompt: phrase everything positively.",
+        "src": ["https://help.bfl.ai/articles/7592221790-how-do-i-generate-quickly-with-flux-2-klein",
+                "https://docs.bfl.ai/guides/prompting_guide_flux2",
+                "https://deapi.ai/blog/prompting-flux-2-klein-what-works-what-doesnt-and-why"],
+    },
+    "qwenimage": {
+        "label": "Qwen-Image / Qwen-Image 2.x", "kind": "image", "negative": True, "max": "up to ~800 tokens (1300 for 2.x); 60-200 words",
+        "neg": "low resolution, error, worst quality, low quality, disfigured, extra fingers, bad proportions",
+        "sizes": "1328x1328, 1664x928, 928x1664, 1472x1104, 1104x1472, 1584x1056 (multiples of 16)",
+        "style": "Detailed natural language in English or Chinese: subject, appearance, action, setting, composition, light, "
+                 "style. Strong at rendering text: put every visible word in double quotes with its position, font style and "
+                 "color. No weighting syntax.",
+        "src": ["https://github.com/QwenLM/Qwen-Image",
+                "https://www.alibabacloud.com/help/en/model-studio/qwen-image-edit-api"],
+    },
+    "qwenedit": {
+        "label": "Qwen-Image Edit", "kind": "edit", "negative": True, "max": "1-4 short sentences",
+        "neg": "low resolution, worst quality, low quality, disfigured, extra fingers, bad proportions",
+        "sizes": "keeps the input aspect; ~1 MP, e.g. 1024x1024, 1024x1536, 1536x1024, 1280x720",
+        "style": "Write an edit INSTRUCTION, not a scene description: an imperative verb + the exact target + the change "
+                 "(\"Change the jacket to red leather\", \"Replace the sign text with 'OPEN'\"), then what to keep "
+                 "(\"Keep the face, pose, lighting and background unchanged\"). Refer to the input as 'the image' "
+                 "(or 'image 1 / image 2' with several). One edit per sentence. Quote new text exactly.",
+        "src": ["https://qwenlm.github.io/blog/qwen-image-edit/",
+                "https://www.alibabacloud.com/help/en/model-studio/qwen-image-edit-api",
+                "https://www.reddit.com/r/StableDiffusion/comments/1n1n81o/qwenimageedit_prompt_guide_the_complete_playbook/"],
+    },
+    "wan": {
+        "label": "Wan 2.1 / 2.2", "kind": "video", "negative": True, "max": "80-150 words (Wan's own prompt extender writes about this much)",
+        "neg": WAN_NEG,
+        "sizes": "1280x720 or 720x1280 (720p), 832x480 / 480x832 (480p); TI2V-5B 1280x704; 81 frames @16 fps (2.2 5B: 121 @24)",
+        "style": "One natural-language paragraph in present tense: subject (appearance) + scene + motion + camera + "
+                 "aesthetic control (light source, time of day, shot size, lens, composition, color tone) + stylization. "
+                 "Name one clear camera move (push in, pull back, pan left, tracking shot, orbit, crane up, handheld). "
+                 "Motion must be continuous and physically plausible within ~5 s.",
+        "src": ["https://www.alibabacloud.com/help/en/model-studio/text-to-video-prompt",
+                "https://github.com/Wan-Video/Wan2.2", "https://wan2-1.com/blogs/prompt-guide"],
+    },
+    "ltx2": {
+        "label": "LTX-Video 2 / 2.5", "kind": "video", "negative": True, "max": "4-8 sentences, under 200 words; longer clips need longer prompts",
+        "neg": "worst quality, inconsistent motion, blurry, jittery, distorted",
+        "sizes": "1920x1080, 1280x720, 768x512 (dims divisible by 32); 24-25 fps",
+        "style": "One flowing paragraph, present tense, in chronological order, starting directly with the main action. "
+                 "Establish the shot with cinematography terms, set light, palette and textures, define characters "
+                 "(age, hair, clothing) and show emotion through physical cues. Describe camera moves relative to the "
+                 "subject and what is seen after the move. Describe audio (ambience, music) and put dialogue in quotes "
+                 "with speaker and accent.",
+        "src": ["https://ltx.io/blog/prompting-guide-for-ltx-2",
+                "https://docs.ltx.io/api-documentation/implementation-guides/prompting-guide",
+                "https://github.com/Lightricks/LTX-2"],
+    },
+    "zimage": {
+        "label": "Z-Image (Turbo / Base)", "kind": "image", "negative": False, "max": "long and detailed: 100-300 words (512 tokens by default, 1024 max)",
+        "neg": "worst quality, low quality, blurry, watermark, text, bad anatomy, extra fingers (Base only, CFG 3-5)",
+        "sizes": "1024x1024, 1280x720, 720x1280, 896x1152, 832x1216 (multiples of 16); Turbo 8-9 steps, CFG 0",
+        "style": "Long, detailed natural-language visual narrative, no tag lists: subject, appearance, action, setting, "
+                 "composition, camera, light, materials, style. Chinese and English text rendering works: quote it. "
+                 "Turbo ignores negative prompts, so write exclusions positively inside the prompt.",
+        "src": ["https://huggingface.co/Tongyi-MAI/Z-Image-Turbo/discussions/8",
+                "https://huggingface.co/Tongyi-MAI/Z-Image"],
+    },
+    "krea2": {
+        "label": "Krea 2", "kind": "image", "negative": False, "max": "short for exploration (20-40 words), dense for control (80-180 words)",
+        "neg": "", "sizes": "about 1K-2K: 1024x1024, 1344x768, 768x1344; Turbo 8 steps CFG 0, RAW ~52 steps CFG 3.5",
+        "style": "One coherent English paragraph of concrete visual relations, not quality-tag piles. Bind every attribute "
+                 "to its subject (counts, left/right, pose, gaze, foreground/midground/background). Exact text in quotes with "
+                 "position and type style. Turbo at CFG 0: phrase exclusions positively.",
+        "src": ["https://github.com/krea-ai/krea-2", "https://github.com/AI-KSK/krea2-prompt-suite"],
+    },
+    "moss": {
+        "label": "MOSS-Image", "kind": "image", "negative": True, "max": "long paragraphs welcome (up to ~4K tokens)",
+        "neg": "worst quality, bad anatomy, watermark, jpeg artifact",
+        "sizes": "1-2 MP, any aspect, multiples of 16: 1024x1024, 1280x768, 768x1280; 50 steps, CFG 3",
+        "style": "Plain English prose: subject doing what in setting, other details each in its place, any text in double "
+                 "quotes with where it appears and how it looks, medium, camera and framing, light and its source, palette "
+                 "and mood. Tags (quality, character, general order) also work, but prose is the default.",
+        "src": ["https://www.mage.space/models/moss-image/prompting-guide", "https://github.com/OpenMOSS/MOSS-Image"],
+    },
+    "minimaxh3": {
+        "label": "MiniMax H3 (Hailuo 3)", "kind": "video", "negative": False, "max": "60-150 words per shot",
+        "neg": "", "sizes": "768P or 2K; 4-15 s; 16:9 or 9:16",
+        "style": "Natural-language shot description: subject, action beats in time order, setting, light, dialogue in quotes "
+                 "with who speaks. Camera intent in words, optionally followed by a bracket tag right after it: [pan], "
+                 "[zoom], [static]. One camera move per continuous take; for cuts write '[Shot 2] At 00:03.500, ...'.",
+        "src": ["https://platform.minimax.io/docs/guides/video-generation",
+                "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/docs/VIDEO_PROMPT_WRITING_GUIDE_ref_en.md"],
+    },
+}
+# Which tabs show the picker and which kinds of model fit them.
+MODEL_TABS = {"prompt": ["image", "edit", "video"], "t2va": ["video"], "ref2va": ["video"], "orbit": ["video"],
+              "character": ["image", "edit"], "rewrite": ["image", "edit", "video"]}
+
+
+def profile_text(key):
+    p = MODEL_PROFILES.get(key) or MODEL_PROFILES["generic"]
+    if key == "generic" or not p.get("style"):
+        return ""
+    lines = ["Target model: " + p["label"] + ". Write every image/video prompt for this model:", "- Style: " + p["style"]]
+    if p.get("max"):
+        lines.append("- Length: " + p["max"] + ".")
+    lines.append("- Negative prompt: " + ("supported; keep unwanted things OUT of the main prompt (the app shows a "
+                 "separate negative prompt)." if p["negative"] else "not supported; never write 'no X' — describe what you want instead."))
+    return "\n".join(lines)
+
 
 LANGUAGES = ["English", "German", "Hindi", "Malayalam", "Tamil", "Kannada", "Telugu",
              "Marathi", "Bengali", "French", "Spanish", "Italian", "Portuguese", "Dutch",
@@ -806,7 +969,8 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/models":
             self._send(200, ollama_models(OLLAMA_HOST))
         elif parsed.path == "/api/config":
-            self._send(200, {"defaults": DEFAULT_MODELS, "systems": DEFAULT_SYSTEMS, "assist": ASSIST_PROMPTS, "assistRules": ASSIST_RULES, "languages": LANGUAGES,
+            self._send(200, {"defaults": DEFAULT_MODELS, "systems": DEFAULT_SYSTEMS, "assist": ASSIST_PROMPTS, "profiles": MODEL_PROFILES, "modelTabs": MODEL_TABS,
+                                    "profileText": {k: profile_text(k) for k in MODEL_PROFILES}, "assistRules": ASSIST_RULES, "languages": LANGUAGES,
                              "pdf": bool(shutil.which("pdftoppm")),
                              "settings": _read_json(SETTINGS_FILE, {})})
         elif parsed.path == "/api/characters":
@@ -1000,6 +1164,10 @@ label.inline { flex-direction:row; align-items:center; gap:6px; }
 details summary { cursor:pointer; font-size:12px; color:var(--muted); margin-top:4px; }
 details textarea { width:100%; min-height:90px; margin-top:6px; font-family:var(--mono); font-size:12px; }
 textarea.big { width:100%; min-height:160px; }
+.mp { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:-2px 0 8px; }
+.mp .hint { margin:0; }
+.mp-neg { display:flex; gap:8px; align-items:flex-end; width:100%; }
+.mp-neg label { flex:1; }
 .assist { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0 4px; }
 .assist .hint { margin:0; }
 .modelbar { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px; }
@@ -3455,7 +3623,7 @@ function ensureVisionModel(tab, messages){
   toast(baseName(name) + ' cannot read images. Using ' + baseName(fb) + '.');
   return true;
 }
-function withSys(tab, msgs, sysOverride){ const s = sysOverride ?? sysOf(tab); return s ? [{role:'system', content:s}, ...msgs] : msgs; }
+function withSys(tab, msgs, sysOverride){ const mp = typeof mpText === 'function' ? mpText(tab) : ''; const s = [sysOverride ?? sysOf(tab), mp].filter(Boolean).join('\n\n'); return s ? [{role:'system', content:s}, ...msgs] : msgs; }
 function runInto(tab, msgs){ paintOut(tab, ''); return streamChat(tab, msgs, t => paintOut(tab, t)); }
 async function remember(tab, title, text, meta){
   const body = String(text || '').trim();
@@ -4990,7 +5158,7 @@ async function asRun(tab, mode, btn){
   }
   const ctx = asContext(tab, c);
   if (ctx) body = 'Tool settings (use them, do not repeat them):\n' + ctx + '\n\n' + body;
-  const msgs = [{role:'system', content: c.system + (CFG.assistRules || '')}, {role:'user', content: body}];
+  const msgs = [{role:'system', content: c.system + (CFG.assistRules || '') + (mpText(tab) ? '\n\n' + mpText(tab) : '')}, {role:'user', content: body}];
   const lbl = ST[tab] ? ST[tab].label : '';
   if (ST[tab]) ST[tab].label = mode === 'enhance' ? '✨ Enhance' : '🎲 Generate';
   const single = !map && $('#' + ids[0]);
@@ -5037,6 +5205,54 @@ function asBoot(){
     $('.as-undo', bar).onclick = () => asUndo(tab);
   }
 }
+// ---- Target model profiles (MODEL_PROFILES in Python, served as CFG.profiles / CFG.profileText) ----
+const MP_KIND = {image:'Image models', edit:'Image edit', video:'Video models'};
+function mpKey(tab){ const k = (S(tab) || {}).target; return (CFG.profiles || {})[k] ? k : 'generic'; }
+function mpActive(tab){
+  if (!(CFG.modelTabs || {})[tab]) return false;
+  if (tab === 'rewrite') return /^(image_prompt|video_prompt)$/.test(typeof RW_PRESET === 'string' ? RW_PRESET : '');
+  return true;
+}
+function mpText(tab){
+  if (!mpActive(tab)) return '';
+  const t = (CFG.profileText || {})[mpKey(tab)] || '';
+  return t ? t + '\n(Apply these rules to the image/video prompt text you write; other text keeps its normal form.)' : '';
+}
+function mpPaint(tab){
+  const bar = $(`.mp[data-for="${tab}"]`); if (!bar) return;
+  const p = CFG.profiles[mpKey(tab)] || {};
+  const bits = [];
+  if (p.sizes) bits.push('📐 ' + p.sizes);
+  if (p.max) bits.push('✏️ ' + p.max);
+  if (mpKey(tab) !== 'generic' && !p.negative) bits.push('🚫 no negative prompt — exclusions are written positively');
+  if (tab === 'rewrite' && !mpActive(tab)) bits.unshift('Used in the Image prompt / Video prompt modes');
+  $('.mp-hint', bar).textContent = bits.join(' · ');
+  const neg = $('.mp-neg', bar), show = !!(p.negative && p.neg);
+  neg.hidden = !show;
+  if (show) $('textarea', neg).value = S(tab).neg && S(tab).negFor === mpKey(tab) ? S(tab).neg : p.neg;
+}
+function mpBoot(){
+  for (const [tab, kinds] of Object.entries(CFG.modelTabs || {})) {
+    const mb = $(`.modelbar[data-for="${tab}"]`);
+    if (!mb || $(`.mp[data-for="${tab}"]`)) continue;
+    const opts = ['<option value="generic">Generic</option>'].concat(kinds.map(kind => {
+      const items = Object.entries(CFG.profiles).filter(([k, p]) => p.kind === kind);
+      return `<optgroup label="${esc(MP_KIND[kind])}">` + items.map(([k, p]) => `<option value="${esc(k)}">${esc(p.label)}</option>`).join('') + '</optgroup>';
+    })).join('');
+    const bar = document.createElement('div');
+    bar.className = 'mp'; bar.dataset.for = tab;
+    bar.innerHTML = `<label class="inline">🎯 Target model <select class="mp-sel" title="Prompts are written for this image/video model">${opts}</select></label><span class="hint mp-hint"></span>`
+      + `<div class="mp-neg" hidden><label>Negative prompt <textarea class="mp-negtext" rows="2"></textarea></label><button type="button" class="mp-copy">Copy negative</button></div>`;
+    mb.insertAdjacentElement('afterend', bar);
+    const sel = $('.mp-sel', bar);
+    sel.value = mpKey(tab);
+    sel.onchange = () => { S(tab).target = sel.value; persist(); mpPaint(tab); };
+    $('.mp-negtext', bar).oninput = e => { S(tab).neg = e.target.value; S(tab).negFor = mpKey(tab); persist(); };
+    $('.mp-copy', bar).onclick = () => { navigator.clipboard && navigator.clipboard.writeText($('.mp-negtext', bar).value); toast('Negative prompt copied'); };
+    mpPaint(tab);
+  }
+  const rm = $('#rw-mode'); if (rm) rm.addEventListener('change', () => mpPaint('rewrite'));
+}
 function pcBoot(){
   ['t2va','ref2va','sound','orbit','character'].forEach(keepFields);
   const lc = S('t2va')['t2-lcat']; if (lc != null) { $('#t2-lcat').value = lc; t2Places(); if (S('t2va')['t2-lplace'] != null) $('#t2-lplace').value = S('t2va')['t2-lplace']; }
@@ -5077,6 +5293,7 @@ function pcBoot(){
     pickRw(S('rewrite').preset || 'paraphrase');
     pcBoot();
     asBoot();
+    mpBoot();
     $('#rp-user').value = S('roleplay').user || 'Roshan';
     $('#cap-trigger').value = S('caption').trigger ?? S('prompt').trigger ?? 'suh4na woman';
     pickCap(S('caption').preset in CAP_PRESETS ? S('caption').preset : 'Training');
@@ -5141,6 +5358,18 @@ def self_test():
         good = all(isinstance(c.get(k), str) and len(c[k]) > 20 for k in ("system", "enhance", "generate"))
         check("assist " + tab, good and tab in TABS_PY and all(
             ('id="%s"' % i) in HTML or (i.startswith("cg-f-") and '"%s"' % i[5:] in HTML) for i in ids))
+    check("has model picker", "function mpBoot" in HTML and "mpBoot();" in HTML and "mpText(tab)" in HTML)
+    for key, pr in MODEL_PROFILES.items():
+        good = all(k in pr for k in ("label", "kind", "negative", "neg", "max", "sizes", "style", "src"))
+        good = good and (key == "generic" or (pr["style"] and pr["max"] and pr["sizes"] and pr["src"]
+                                               and all(u.startswith("https://") for u in pr["src"])))
+        good = good and (not pr["negative"] or bool(pr["neg"]))
+        check("profile " + key, good and pr["kind"] in ("any", "image", "edit", "video"))
+    check("profile labels unique", len({p["label"] for p in MODEL_PROFILES.values()}) == len(MODEL_PROFILES))
+    check("profile tabs", all(t in TABS_PY for t in MODEL_TABS) and "sound" not in MODEL_TABS)
+    check("profile text sd15", "(word:1.2)" in profile_text("sd15") and "75 CLIP" in profile_text("sd15"))
+    check("profile text flux", "not supported" in profile_text("flux2klein") and profile_text("generic") == "")
+    check("profile qwen edit", "INSTRUCTION" in profile_text("qwenedit"))
     check("assist rules", "No preamble" in ASSIST_RULES and "Keep every" in ASSIST_RULES)
     check("safe id", _safe_id("A b/c") == "A_b_c")
     check("safe id empty", _safe_id("") == "default")
