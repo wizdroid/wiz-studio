@@ -59,3 +59,26 @@ OCR, Caption, and Extract only list models Ollama marks as vision. A saved text-
 - `library.json` — saved runs (text only, newest 200)
 
 Settings are mirrored in browser localStorage under `wiz-studio-settings`.
+
+## Enhance / Generate
+
+Every text tool has the same bar above the field it works on: **✨ Enhance** rewrites what you typed into a
+richer, well-structured version that keeps your intent; **🎲 Generate** writes a complete input from a short
+idea (or from scratch when the field is empty); **↶ Undo** restores the text from before. It uses the tab's
+model and reads the tab's other settings (type, genre, duration, mode…) as context. Caption and Extract
+have no bar: their input is the image and a preset.
+
+All prompts live in one dict, `ASSIST_PROMPTS` (plus shared `ASSIST_RULES`) near the top of `wiz_studio.py`.
+Tabs with several fields (Roleplay card, Ref2VA, Orbit, Character) answer with `KEY: value` lines, which
+small local models follow more reliably than JSON. Prompt design draws on:
+
+- OpenAI prompt-generation meta-prompt: https://developers.openai.com/api/docs/guides/prompt-generation
+- Anthropic prompt engineering / prompt improver / metaprompt:
+  https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview ,
+  https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prompt-improver ,
+  https://platform.claude.com/cookbook/misc-metaprompt
+- Wan text-to-video prompts: https://www.alibabacloud.com/help/en/model-studio/text-to-video-prompt
+- Veo prompt guide: https://deepmind.google/models/veo/prompt-guide/
+- Suno style prompts: https://paddystudio.com/blog/suno-prompting-guide/
+- Character turnaround sheets: https://arcloop.ai/handbook/en-US/character-turnaround-sheet-guide ,
+  https://www.elser.ai/blog/ai-character-turnaround-prompts-front-side-back-views

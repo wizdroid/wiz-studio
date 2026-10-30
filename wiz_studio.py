@@ -84,6 +84,161 @@ DEFAULT_SYSTEMS = {
     "t2va": "", "ref2va": "", "sound": "", "orbit": "", "character": ""
 }
 
+# ---------------------------------------------------------------------------
+# Enhance / Generate prompts, one entry per tool. Edit freely.
+#   fields   : element id (single text field) or {"KEY": element id} (several fields,
+#              the model answers with "KEY: value" lines)
+#   idea     : element id whose text seeds Generate (defaults to the single field)
+#   system   : the tool's role + quality bar (ASSIST_RULES is appended to it)
+#   enhance  : task for Enhance, generate: task for Generate
+# Design notes (sources in README "Enhance / Generate"): clear role first, explicit
+# output format, keep every user detail, fixed slot order, concrete nouns and verbs over
+# adjectives, one camera move per shot, numeric BPM, no preamble — small local models
+# follow short numbered rules far better than long prose.
+# ---------------------------------------------------------------------------
+ASSIST_RULES = (
+    "\n\nRules for every answer:\n"
+    "1. Output ONLY the finished text in the requested format. No preamble, no 'Here is', no title, "
+    "no notes, no questions, no markdown code fences.\n"
+    "2. Keep every name, number, quoted line, language, place, object and constraint the user wrote. "
+    "Never contradict them. Add detail around them.\n"
+    "3. Be concrete: specific nouns, verbs, materials, colors and measurements beat words like "
+    "beautiful, stunning, epic, cinematic, masterpiece, 8k.\n"
+    "4. Write in the user's language unless the tool needs English.\n"
+    "5. If the user gave nothing to build on, invent something fresh, specific and coherent."
+)
+
+ASSIST_PROMPTS = {
+    "ocr": {
+        "fields": "ocr-instr",
+        "system": "You write instructions for a small vision OCR model. Good OCR instructions say what to read, "
+                  "what to keep (line breaks, reading order, tables as Markdown, headers, numbers exactly as printed), "
+                  "what to skip, and how to mark unreadable parts like [illegible].",
+        "enhance": "Rewrite this OCR instruction so it is precise and complete. 2 to 5 short imperative sentences.",
+        "generate": "Write an OCR instruction for this document type or goal (or a general one if empty). "
+                    "2 to 5 short imperative sentences.",
+    },
+    "translate": {
+        "fields": "tr-text",
+        "system": "You prepare source text for machine translation. Clean source text translates better: "
+                  "fixed typos, full sentences, clear pronoun references, no ambiguity, same meaning and tone.",
+        "enhance": "Clean up this text for translation: fix spelling, grammar and unclear phrasing, resolve ambiguity, "
+                   "keep the same language, meaning, tone, line breaks and length. Do not translate it.",
+        "generate": "Write a natural, well-formed text of 3 to 8 sentences on this topic or situation, "
+                    "ready to translate. Use the language the topic is written in, else English.",
+    },
+    "prompt": {
+        "fields": "pg-idea",
+        "system": "You develop ideas for text-to-image and image-to-video prompts (Krea 2, Qwen Image, Flux, Wan, "
+                  "MiniMax). Strong ideas name, in this order: subject (age, build, expression, outfit with colors and "
+                  "materials), action or pose, setting with 2-3 concrete objects, time of day and light source, "
+                  "framing (shot size, angle, lens), mood, medium and style. Describe what is present, never what is absent. "
+                  "Never describe the face, hair, skin or body of a trigger-word LoRA character; describe outfit, pose, place, light.",
+        "enhance": "Rewrite this idea as one rich, specific paragraph of 60 to 120 words following that order.",
+        "generate": "Turn this short idea (or, if empty, an original one) into one rich, specific paragraph of 60 to 120 words "
+                    "following that order.",
+    },
+    "roleplay": {
+        "fields": {"NAME": "rp-name", "TAGS": "rp-tags", "PERSONA": "rp-persona", "SCENARIO": "rp-scenario",
+                   "GREETING": "rp-greeting", "EXAMPLES": "rp-examples"},
+        "idea": "rp-persona",
+        "system": "You write roleplay character cards for small local chat models. A strong card has: "
+                  "PERSONA = appearance, age, personality traits shown through habits, speech style with sample phrases, "
+                  "likes, dislikes, cultural flavor, boundaries, in 80-150 words of plain sentences; "
+                  "SCENARIO = where and when the story starts and what the relationship with {{user}} is, 1-3 sentences; "
+                  "GREETING = the first message in character, actions in *asterisks*, dialogue in quotes, ending with a hook "
+                  "that invites {{user}} to answer, never speaking for {{user}}; "
+                  "EXAMPLES = 2-3 short exchanges as lines '{{user}}: ...' and '{{char}}: ...' that show the voice; "
+                  "TAGS = 3-5 short tags separated by ' · '.",
+        "enhance": "Improve this card. Keep the character's identity, name and every stated fact; fill empty parts; "
+                   "sharpen the voice.",
+        "generate": "Create a complete, original card from this idea (or invent one if empty).",
+    },
+    "rewrite": {
+        "fields": "rw-extra",
+        "system": "You write rewrite instructions for an editing model. A good instruction names the audience, "
+                  "the tone, the length target, what must stay unchanged (facts, names, quotes, formatting) and one or two "
+                  "concrete style moves.",
+        "enhance": "Rewrite this rough instruction as a clear rewrite instruction of 2 to 5 short imperative sentences.",
+        "generate": "Write a rewrite instruction of 2 to 5 short imperative sentences that would most improve the source "
+                    "text below for the chosen mode.",
+    },
+    "chat": {
+        "fields": "ch-input",
+        "system": "You improve prompts for an AI assistant, like a prompt improver. A strong prompt states the task first, "
+                  "then context, then requirements as a short list, then the exact output format and length. "
+                  "Mark guesses as 'Assumption:' lines. Keep every code snippet, error message, path and number exactly.",
+        "enhance": "Rewrite this message as a clear, well-structured prompt with that layout. Do not answer it.",
+        "generate": "Write a complete, well-structured prompt with that layout for this goal (or a useful one if empty). "
+                    "Do not answer it.",
+    },
+    "t2va": {
+        "fields": "t2-dir",
+        "system": "You write scene directions for a text-to-video-with-audio model (MiniMax H3, Veo, Wan style). "
+                  "A strong direction says, in present tense and time order: who is in the shot (appearance, outfit), "
+                  "the place and time of day, 2-4 clear physical action beats, exact dialogue in quotes with who says it, "
+                  "one camera move per shot (static, slow push-in, tracking, handheld, orbit, crane), the light source, "
+                  "and the important sounds. Show emotion through small physical cues. One continuous moment that fits "
+                  "the clip length. No on-screen text, no real celebrities.",
+        "enhance": "Rewrite this direction so it is vivid and filmable, 60 to 140 words, same events and dialogue.",
+        "generate": "Write a direction of 60 to 140 words for this idea (or an original moment if empty) that fits the "
+                    "movie type and duration given.",
+    },
+    "ref2va": {
+        "fields": {"PEOPLE": "r2-people", "PLACES": "r2-places", "VOICES": "r2-audios", "INTERACTION": "r2-text"},
+        "idea": "r2-text",
+        "system": "You set up a reference-to-video shot. Formats: PEOPLE = one line per person 'Name | woman/man/person | "
+                  "outfit and look note' (max 6); PLACES = one place per line, short (max 3); VOICES = one line per voice "
+                  "'Label | person number | timbre, pitch, accent, pace' (max 3); INTERACTION = 40-120 words, present tense, "
+                  "what each person does and says, dialogue in quotes, one camera move, light source.",
+        "enhance": "Improve all four parts. Keep every person, place and spoken line; add concrete outfit notes, timbres "
+                   "and blocking. Multi-line values continue on the following lines.",
+        "generate": "Create all four parts for this idea (or an original two-person scene if empty).",
+    },
+    "sound": {
+        "fields": "sd-text",
+        "system": "You write scene descriptions that drive sound design and music. A strong scene names the place and "
+                  "surface materials, weather and time, every sound source (near, mid, far), actions that make noise, "
+                  "the emotional beat and how it changes, and whether music is heard by the characters. "
+                  "For music, think genre first, then mood, tempo as a BPM number, 2-4 instruments by role, vocal type, "
+                  "production texture. Never name real artists or songs.",
+        "enhance": "Rewrite this scene so a sound designer can hear it, 50 to 120 words, same events.",
+        "generate": "Write a scene of 50 to 120 words for this idea (or an original one if empty), matching the chosen "
+                    "music and soundscape options.",
+    },
+    "orbit": {
+        "fields": {"STYLE": "or-style", "PLACE": "or-place", "LIGHT": "or-light", "SOUND": "or-sound",
+                   "NORTH": "or-north", "EAST": "or-east", "SOUTH": "or-south", "WEST": "or-west",
+                   "NE": "or-ne", "NW": "or-nw", "SE": "or-se", "SW": "or-sw", "MIDDLE": "or-middle"},
+        "idea": "or-desc",
+        "system": "You design a small room for a slow 360-degree centre-orbit video. Each wall value is one object "
+                  "phrase under 14 words starting with a/an/one/the, with color AND material. A TV and a couch go on "
+                  "opposite walls. Corners (NE NW SE SW) are empty unless something stands there; write them as an empty "
+                  "value. STYLE = 'Live-action, YEAR, PLACE, film look, grain'. PLACE = one sentence with room size. "
+                  "LIGHT = the light source. SOUND = 1-2 sentences of room tone ending 'No voices.' MIDDLE = the object "
+                  "hanging above or nearest the camera. No people, text or logos.",
+        "enhance": "Improve every value, keep each object the user named on the same wall.",
+        "generate": "Design the whole room for this description (or an original room if empty).",
+    },
+    "character": {
+        "fields": {"NAME": "cg-name", "ROLE": "cg-role", "SEED": "cg-seed", "AGE": "cg-f-age", "LOOK": "cg-f-look",
+                   "BUILD": "cg-f-build", "HAIR": "cg-f-hair", "FACE": "cg-f-face", "OUTFIT": "cg-f-outfit",
+                   "PERSONALITY": "cg-f-personality", "BACKSTORY": "cg-f-backstory", "ARC": "cg-f-arc",
+                   "VOICE": "cg-f-voice", "QUIRKS": "cg-f-quirks", "GOALS": "cg-f-goals",
+                   "RELATIONSHIPS": "cg-f-relationships"},
+        "idea": "cg-seed",
+        "system": "You build production-ready characters for film and turnaround sheets. Visual fields (AGE LOOK BUILD "
+                  "HAIR FACE OUTFIT) must be fixed and drawable: exact colors, materials, garment layers, fastenings, "
+                  "accessories and which side they sit on, so the same character can be redrawn front, side and back. "
+                  "Story fields are 1-3 sentences each: PERSONALITY through behaviour, BACKSTORY with one wound, ARC from "
+                  "flaw to change, VOICE as timbre, pitch, accent and pace, QUIRKS as 2-3 visible habits, GOALS as want vs need. "
+                  "SEED is one line.",
+        "enhance": "Improve every field to that standard. Keep the name, genre and every fact already written.",
+        "generate": "Create a complete, original character for this seed idea (or invent one if empty) in the genre given.",
+    },
+}
+
+
 LANGUAGES = ["English", "German", "Hindi", "Malayalam", "Tamil", "Kannada", "Telugu",
              "Marathi", "Bengali", "French", "Spanish", "Italian", "Portuguese", "Dutch",
              "Russian", "Arabic", "Turkish", "Japanese", "Chinese", "Korean"]
@@ -651,7 +806,7 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/models":
             self._send(200, ollama_models(OLLAMA_HOST))
         elif parsed.path == "/api/config":
-            self._send(200, {"defaults": DEFAULT_MODELS, "systems": DEFAULT_SYSTEMS, "languages": LANGUAGES,
+            self._send(200, {"defaults": DEFAULT_MODELS, "systems": DEFAULT_SYSTEMS, "assist": ASSIST_PROMPTS, "assistRules": ASSIST_RULES, "languages": LANGUAGES,
                              "pdf": bool(shutil.which("pdftoppm")),
                              "settings": _read_json(SETTINGS_FILE, {})})
         elif parsed.path == "/api/characters":
@@ -845,6 +1000,8 @@ label.inline { flex-direction:row; align-items:center; gap:6px; }
 details summary { cursor:pointer; font-size:12px; color:var(--muted); margin-top:4px; }
 details textarea { width:100%; min-height:90px; margin-top:6px; font-family:var(--mono); font-size:12px; }
 textarea.big { width:100%; min-height:160px; }
+.assist { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0 4px; }
+.assist .hint { margin:0; }
 .modelbar { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px; }
 .modelbar label.inline { flex-direction:row; align-items:center; gap:4px; }
 .modelbar select { min-width:220px; }
@@ -4776,6 +4933,110 @@ $('#cg-to-t2va').onclick = () => {
   setKeep('t2-bible', ($('#t2-bible').value.trim() + '\n' + ($('#cg-name').value.trim() || 'Unnamed') + ': ' + v).trim());
   showTab('t2va'); toast('Locked in T2VA');
 };
+// ---- Enhance / Generate (prompts live in ASSIST_PROMPTS in Python, served as CFG.assist) ----
+const AS_UNDO = {};
+function asCfg(tab){ return (CFG.assist || {})[tab]; }
+function asMap(c){ return typeof c.fields === 'string' ? null : c.fields; }
+function asIds(c){ return typeof c.fields === 'string' ? [c.fields] : Object.values(c.fields); }
+function asLabelOf(el){ const l = el.closest('label'); return l ? (l.childNodes[0] && l.childNodes[0].textContent || l.textContent).trim().replace(/\s+/g, ' ').slice(0, 60) : (el.id || ''); }
+function asContext(tab, c){
+  const skip = new Set(asIds(c).concat(c.idea ? [c.idea] : []));
+  const out = [];
+  $$(`#tab-${tab} select, #tab-${tab} input[type=text], #tab-${tab} input[type=number], #tab-${tab} input:not([type]), #tab-${tab} textarea`).forEach(el => {
+    if (skip.has(el.id) || !el.closest('label') || /^send to/i.test(asLabelOf(el)) || el.closest('.modelbar') || el.closest('.assist') || el.type === 'file') return;
+    let v = el.tagName === 'SELECT' ? (el.selectedOptions[0] ? el.selectedOptions[0].textContent : '') : el.value;
+    v = String(v || '').trim();
+    if (!v) return;
+    out.push(asLabelOf(el) + ': ' + (v.length > 1500 ? v.slice(0, 1500) + '…' : v));
+  });
+  return out.join('\n');
+}
+function asStrip(t){
+  t = String(t || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+  t = pcClean(t);
+  t = t.replace(/^\s*(sure|okay|ok|certainly|here(?: is|'s| are)[^\n]*?)[:!.]\s*\n/i, '');
+  t = t.replace(/^\s*(enhanced|improved|rewritten|generated|final)[^\n:]{0,30}:\s*\n?/i, '');
+  return t.trim().replace(/^"([\s\S]*)"$/, '$1').trim();
+}
+function asParse(text, keys){
+  const out = {}, re = new RegExp('^\\s*[-*#>]*\\s*\\**\\s*(' + keys.join('|') + ')\\s*\\**\\s*[:=]\\s*\\**', 'i');
+  let cur = null;
+  String(text || '').split(/\r?\n/).forEach(line => {
+    const m = line.match(re);
+    if (m) { cur = keys.find(k => k.toLowerCase() === m[1].toLowerCase()); out[cur] = line.slice(m[0].length).trim(); }
+    else if (cur) out[cur] += '\n' + line;
+  });
+  for (const k in out) out[k] = out[k].trim().replace(/^(empty|none|n\/a|-)$/i, '');
+  return out;
+}
+function asUndoBtn(tab){ return $(`.assist[data-for="${tab}"] .as-undo`); }
+async function asRun(tab, mode, btn){
+  const c = asCfg(tab); if (!c) return;
+  const map = asMap(c), ids = asIds(c);
+  const snap = {}; ids.forEach(id => { const el = $('#' + id); if (el) snap[id] = el.value; });
+  const ideaId = c.idea || ids[0];
+  const ideaVal = (($('#' + ideaId) || {}).value || '').trim();
+  let body = (mode === 'enhance' ? c.enhance : c.generate) + '\n\n';
+  if (map) {
+    const keys = Object.keys(map);
+    if (mode === 'enhance') body += 'Current values:\n' + keys.map(k => k + ': ' + (snap[map[k]] || '').trim()).join('\n') + '\n\n';
+    else body += 'Idea: ' + (ideaVal || '(none — invent one; variation ' + Math.floor(Math.random() * 1e4) + ')') + '\n\n';
+    body += 'Answer with exactly these lines, in this order, each starting with the key and a colon (leave a value empty if it should be empty):\n' + keys.map(k => k + ': ...').join('\n');
+  } else {
+    const cur = (snap[ids[0]] || '').trim();
+    if (mode === 'enhance') body += '<input>\n' + cur + '\n</input>';
+    else body += 'Idea: ' + (cur || '(none — invent one; variation ' + Math.floor(Math.random() * 1e4) + ')');
+    body += '\n\nAnswer with the finished text only.';
+  }
+  const ctx = asContext(tab, c);
+  if (ctx) body = 'Tool settings (use them, do not repeat them):\n' + ctx + '\n\n' + body;
+  const msgs = [{role:'system', content: c.system + (CFG.assistRules || '')}, {role:'user', content: body}];
+  const lbl = ST[tab] ? ST[tab].label : '';
+  if (ST[tab]) ST[tab].label = mode === 'enhance' ? '✨ Enhance' : '🎲 Generate';
+  const single = !map && $('#' + ids[0]);
+  let raw = '';
+  try {
+    raw = await streamChat(tab, msgs, t => { if (single) single.value = asStrip(t); });
+  } finally { if (ST[tab]) ST[tab].label = lbl; }
+  if (!ST[tab] || ST[tab].last === 'err' || !String(raw || '').trim()) {
+    ids.forEach(id => { if (id in snap) setKeep(id, snap[id]); });
+    if (ST[tab] && ST[tab].last !== 'abort') toast('Nothing came back — try again or pick another model.');
+    return;
+  }
+  if (map) {
+    const got = asParse(asStrip(raw), Object.keys(map));
+    if (!Object.keys(got).length) { toast('The model did not use the KEY: value format — try again or a bigger model.'); return; }
+    for (const k in got) setKeep(map[k], got[k]);
+  } else setKeep(ids[0], asStrip(raw));
+  (AS_UNDO[tab] = AS_UNDO[tab] || []).push(snap);
+  const u = asUndoBtn(tab); if (u) u.disabled = false;
+  if (ST[tab]) ST[tab].status.textContent = (mode === 'enhance' ? 'Enhanced' : 'Generated') + ' with ' + modelOf(tab) + ' · ↶ Undo restores the previous text';
+}
+function asUndo(tab){
+  const s = (AS_UNDO[tab] || []).pop(); if (!s) return;
+  for (const id in s) setKeep(id, s[id]);
+  const u = asUndoBtn(tab); if (u) u.disabled = !(AS_UNDO[tab] || []).length;
+  toast('Restored');
+}
+function asBoot(){
+  for (const tab of Object.keys(CFG.assist || {})) {
+    const c = asCfg(tab), first = $('#' + (c.idea || asIds(c)[0]));
+    const panel = $('#tab-' + tab);
+    if (!first || !panel || $(`.assist[data-for="${tab}"]`)) continue;
+    const anchor = first.closest('label') || first;
+    const what = asMap(c) ? 'all ' + Object.keys(asMap(c)).length + ' fields below' : asLabelOf(first).toLowerCase();
+    const bar = document.createElement('div');
+    bar.className = 'assist'; bar.dataset.for = tab;
+    bar.innerHTML = `<button type="button" class="as-enh" title="Rewrite what you typed into a richer, well-structured version that keeps your intent">✨ Enhance</button>`
+      + `<button type="button" class="as-gen" title="Write a complete input from a short idea, or from scratch if empty">🎲 Generate</button>`
+      + `<button type="button" class="as-undo" title="Restore the text from before the last Enhance / Generate" disabled>↶ Undo</button>`
+      + `<span class="hint">Works on ${esc(what)} · uses this tab's model</span>`;
+    anchor.parentNode.insertBefore(bar, anchor);
+    $('.as-enh', bar).onclick = e => busy(e.currentTarget, () => asRun(tab, 'enhance'));
+    $('.as-gen', bar).onclick = e => busy(e.currentTarget, () => asRun(tab, 'generate'));
+    $('.as-undo', bar).onclick = () => asUndo(tab);
+  }
+}
 function pcBoot(){
   ['t2va','ref2va','sound','orbit','character'].forEach(keepFields);
   const lc = S('t2va')['t2-lcat']; if (lc != null) { $('#t2-lcat').value = lc; t2Places(); if (S('t2va')['t2-lplace'] != null) $('#t2-lplace').value = S('t2va')['t2-lplace']; }
@@ -4815,6 +5076,7 @@ function pcBoot(){
     $('#rw-extra').value = S('rewrite').custom || '';
     pickRw(S('rewrite').preset || 'paraphrase');
     pcBoot();
+    asBoot();
     $('#rp-user').value = S('roleplay').user || 'Roshan';
     $('#cap-trigger').value = S('caption').trigger ?? S('prompt').trigger ?? 'suh4na woman';
     pickCap(S('caption').preset in CAP_PRESETS ? S('caption').preset : 'Training');
@@ -4839,6 +5101,10 @@ function pcBoot(){
 </body>
 </html>
 """
+
+
+TABS_PY = ("ocr", "translate", "prompt", "roleplay", "rewrite", "chat", "caption", "extract",
+           "t2va", "ref2va", "sound", "orbit", "character")
 
 
 def self_test():
@@ -4868,6 +5134,14 @@ def self_test():
                    "Image to prompt", "Full breakdown", 'id="lib-modal"', 'id="keys-modal"',
                    "/api/library", "/api/zip", "/api/threads"):
         check("has " + marker, marker in HTML)
+    check("has assist bar", "function asBoot" in HTML and "asBoot();" in HTML and ".assist {" in HTML)
+    for tab, c in ASSIST_PROMPTS.items():
+        ids = [c["fields"]] if isinstance(c["fields"], str) else list(c["fields"].values())
+        ids += [c["idea"]] if c.get("idea") else []
+        good = all(isinstance(c.get(k), str) and len(c[k]) > 20 for k in ("system", "enhance", "generate"))
+        check("assist " + tab, good and tab in TABS_PY and all(
+            ('id="%s"' % i) in HTML or (i.startswith("cg-f-") and '"%s"' % i[5:] in HTML) for i in ids))
+    check("assist rules", "No preamble" in ASSIST_RULES and "Keep every" in ASSIST_RULES)
     check("safe id", _safe_id("A b/c") == "A_b_c")
     check("safe id empty", _safe_id("") == "default")
     check("safe name", _safe_name("../x.txt") == "x.txt")
