@@ -43,6 +43,8 @@ The H3 draft is a starting point. Production clips still go through H3 Prompter.
 
 An older prompt preset named `Photoreal image` opens as `Photoreal still`. `MiniMax H3 structured` opens as `MiniMax H3 draft`.
 
+OCR, Caption, and Extract only list models Ollama marks as vision. A saved text-only model is replaced with that tool's vision default. Attaching an image on any other tool does the same.
+
 ## Data
 `~/.config/wiz-studio/`
 

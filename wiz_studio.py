@@ -555,9 +555,36 @@ def ollama_models(host):
     try:
         with urllib.request.urlopen(host.rstrip("/") + "/api/tags", timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-        return {"ok": True, "models": sorted(m.get("name", "") for m in data.get("models", []))}
+        models = []
+        capabilities = {}
+        for m in data.get("models", []):
+            name = str(m.get("name") or "")
+            if not name:
+                continue
+            models.append(name)
+            caps = m.get("capabilities")
+            if isinstance(caps, list):
+                capabilities[name] = [str(c) for c in caps]
+        return {"ok": True, "models": sorted(models), "capabilities": capabilities}
     except Exception as e:
-        return {"ok": False, "models": [], "error": f"Ollama not reachable at {host} ({e})"}
+        return {"ok": False, "models": [], "capabilities": {}, "error": f"Ollama not reachable at {host} ({e})"}
+
+
+def pick_vision_model(requested, vision_names, prefer="qwen-3-vl-8B-Q8"):
+    """Keep a vision model. A text-only model is replaced with prefer, then the first vision model."""
+    def base(name):
+        return str(name or "").split(":", 1)[0]
+
+    names = [n for n in (vision_names or []) if n]
+    for name in names:
+        if requested == name or base(requested) == base(name):
+            return name, False
+    for name in names:
+        if base(name) == prefer:
+            return name, True
+    if names:
+        return names[0], True
+    return requested, False
 
 
 def pdf_to_images(b64, dpi=150, max_pages=30):
@@ -705,9 +732,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def _proxy_chat(self, body):
         """Stream Ollama /api/chat NDJSON straight through to the browser."""
+        messages = body.get("messages") or []
+        model = body.get("model")
+        if any(isinstance(m, dict) and m.get("images") for m in messages):
+            info = ollama_models(OLLAMA_HOST)
+            vision = [n for n, caps in (info.get("capabilities") or {}).items() if "vision" in caps]
+            if vision:
+                model, _switched = pick_vision_model(str(model or ""), vision)
+            elif info.get("ok"):
+                return self._send(200, json.dumps({"error": "This model cannot read images, and no vision model is installed."}) + "\n",
+                                  "application/x-ndjson")
         payload = {
-            "model": body.get("model"),
-            "messages": body.get("messages") or [],
+            "model": model,
+            "messages": messages,
             "stream": True,
             "options": {"temperature": float(body.get("temperature", 0.7))},
         }
@@ -1143,6 +1180,8 @@ const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 const TABS = ['ocr','translate','prompt','roleplay','rewrite','chat','caption','extract'];
 let CFG = {defaults:{}, systems:{}, languages:[], settings:{}};
 let MODELS = [];
+let MODEL_CAPS = {};
+const IMAGE_TABS = new Set(['ocr', 'caption', 'extract']);
 const ST = {};
 
 function S(tab){ CFG.settings[tab] = CFG.settings[tab] || {}; return CFG.settings[tab]; }
@@ -1178,10 +1217,33 @@ window.addEventListener('hashchange', () => {
   if (TABS.includes(t) && t !== currentTab()) showTab(t);
 });
 
+function baseName(m){ return String(m || '').split(':')[0]; }
+function capsOf(name){
+  if (!name) return null;
+  if (MODEL_CAPS[name]) return MODEL_CAPS[name];
+  const hit = Object.keys(MODEL_CAPS).find(k => baseName(k) === baseName(name));
+  return hit ? MODEL_CAPS[hit] : null;
+}
+function isVision(name){ const c = capsOf(name); return !!(c && c.includes('vision')); }
+function modelsFor(tab){
+  if (!IMAGE_TABS.has(tab) || !MODELS.length) return MODELS;
+  const vis = MODELS.filter(isVision);
+  return vis.length ? vis : MODELS;
+}
+function matchInstalled(pool, want){
+  if (!want || !pool.length) return '';
+  return pool.find(m => m === want) || pool.find(m => baseName(m) === baseName(want)) || '';
+}
 function pickModel(tab, wanted){
   const want = wanted || S(tab).model || (CFG.defaults || {})[tab];
-  if (!MODELS.length) return want || '';
-  return MODELS.find(m => m === want) || MODELS.find(m => m.split(':')[0] === String(want || '').split(':')[0]) || MODELS[0];
+  const pool = modelsFor(tab);
+  if (!pool.length) return want || '';
+  return matchInstalled(pool, want) || matchInstalled(pool, (CFG.defaults || {})[tab]) || pool[0];
+}
+function modelLabel(m){
+  const c = capsOf(m);
+  if (!c) return m;
+  return m + (c.includes('vision') ? '  ·  vision' : '  ·  text');
 }
 function buildModelBars(){
   $$('.modelbar').forEach(bar => {
@@ -1216,10 +1278,18 @@ function buildModelBars(){
 function fillModels(){
   $$('.modelbar').forEach(bar => {
     const tab = bar.dataset.for, sel = $('.mb-model', bar);
+    const saved = S(tab).model || '';
     const cur = pickModel(tab);
-    const list = MODELS.length ? MODELS : (cur ? [cur] : []);
-    sel.innerHTML = list.map(m => `<option>${esc(m)}</option>`).join('');
+    const list = modelsFor(tab);
+    const shown = list.length ? list : (cur ? [cur] : []);
+    sel.innerHTML = shown.map(m => `<option value="${esc(m)}">${esc(modelLabel(m))}</option>`).join('');
     if (cur) sel.value = cur;
+    const savedCaps = capsOf(saved);
+    if (IMAGE_TABS.has(tab) && saved && cur && savedCaps && !savedCaps.includes('vision') && baseName(saved) !== baseName(cur)) {
+      S(tab).model = cur;
+      persist();
+      if (ST[tab] && ST[tab].status) ST[tab].status.textContent = baseName(saved) + ' cannot read images. Using ' + baseName(cur) + '.';
+    }
   });
 }
 function modelOf(tab){ return $(`.modelbar[data-for="${tab}"] .mb-model`).value; }
@@ -1239,6 +1309,7 @@ async function loadModels(){
   try {
     const r = await (await fetch('/api/models')).json();
     MODELS = r.models || [];
+    MODEL_CAPS = r.capabilities || {};
     if (r.ok) { st.textContent = 'Ollama · ' + MODELS.length + ' models'; st.className = 'pill ok'; banner(''); }
     else { st.textContent = 'Ollama offline'; st.className = 'pill bad'; banner(r.error + ' — start it from AI Dock or run ollama serve, then click Models.'); }
   } catch (e) { st.textContent = 'Studio server unreachable'; st.className = 'pill bad'; }
@@ -1385,6 +1456,7 @@ async function streamChat(tab, messages, onText){
   const slot = ST[tab];
   if (!slot) return '';
   const ctrl = new AbortController();
+  if (!ensureVisionModel(tab, messages)) return '';
   slot.ctrl = ctrl;
   slot.last = 'run';
   let full = '', t0 = performance.now(), evals = 0, evalNs = 0;
@@ -1425,6 +1497,27 @@ async function streamChat(tab, messages, onText){
     else { status.textContent = e.message; status.classList.add('err'); slot.last = 'err'; }
   } finally { if (slot.ctrl === ctrl) slot.ctrl = null; }
   return hideThink(tab) ? stripThink(full) : full;
+}
+function messagesNeedVision(messages){
+  return (messages || []).some(m => Array.isArray(m.images) && m.images.length);
+}
+function ensureVisionModel(tab, messages){
+  if (!messagesNeedVision(messages)) return true;
+  const name = modelOf(tab);
+  const caps = capsOf(name);
+  if (!caps || caps.includes('vision')) return true;
+  const pool = MODELS.filter(isVision);
+  const fb = matchInstalled(pool, (CFG.defaults || {})[tab]) || matchInstalled(pool, (CFG.defaults || {}).extract) || pool[0] || '';
+  const slot = ST[tab];
+  if (!fb) {
+    slot.last = 'err';
+    slot.status.classList.add('err');
+    slot.status.textContent = baseName(name) + ' cannot read images, and no vision model is installed.';
+    return false;
+  }
+  setModel(tab, fb);
+  toast(baseName(name) + ' cannot read images. Using ' + baseName(fb) + '.');
+  return true;
 }
 function withSys(tab, msgs, sysOverride){ const s = sysOverride ?? sysOf(tab); return s ? [{role:'system', content:s}, ...msgs] : msgs; }
 function runInto(tab, msgs){ paintOut(tab, ''); return streamChat(tab, msgs, t => paintOut(tab, t)); }
@@ -2744,9 +2837,16 @@ def self_test():
 
     r = ollama_models(OLLAMA_HOST)
     print("ollama:", "ok" if r["ok"] else r.get("error"), len(r["models"]), "models")
+    if r.get("ok"):
+        caps = r.get("capabilities") or {}
+        check("vision capabilities", any("vision" in (v or []) for v in caps.values()))
+    routed, switched = pick_vision_model("gemma-4-27B-Q4KM:latest", ["gemma-4-7.5B-Q8:latest", "qwen-3-vl-8B-Q8:latest"])
+    check("text model rerouted", switched and routed == "qwen-3-vl-8B-Q8:latest")
+    kept, kept_switched = pick_vision_model("qwen-3-vl-8B-Q8", ["qwen-3-vl-8B-Q8:latest"])
+    check("vision model kept", not kept_switched and kept == "qwen-3-vl-8B-Q8:latest")
     check("theme marker", "/*__THEME__*/" in HTML)
     for marker in ("tab-ocr", "tab-translate", "tab-prompt", "tab-roleplay", "tab-rewrite",
-                   "tab-chat", "tab-caption", "tab-extract", "Camera & blocking",
+                   "tab-chat", "tab-caption", "tab-extract", "cannot read images", "Camera & blocking",
                    "Image to prompt", "Full breakdown", 'id="lib-modal"', 'id="keys-modal"',
                    "/api/library", "/api/zip", "/api/threads"):
         check("has " + marker, marker in HTML)
